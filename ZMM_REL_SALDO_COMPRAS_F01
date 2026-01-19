@@ -1,0 +1,229 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_REL_SALDO_COMPRAS_F01
+*&---------------------------------------------------------------------*
+
+*---------------------------------------------------------------------*
+*  FORMS
+*---------------------------------------------------------------------*
+FORM f_carrega_opcoes.
+
+  gt_values = VALUE vrm_values(
+    ( key = 'SALDO_REQUISICAO'  text = 'Saldo da Requisição de Compra' )
+    ( key = 'SALDO_PEDIDO'      text = 'Saldo do Pedido de Compra' )
+    ( key = 'SALDO_NF'          text = 'Saldo da Nota Fiscal' )
+    ( key = 'SALDO_FINAL'       text = 'Saldo Final Consolidado' )
+  ).
+
+  CALL FUNCTION 'VRM_SET_VALUES'
+    EXPORTING
+      id     = 'P_TIPO'
+      values = gt_values.
+
+  " valor default
+  p_tipo = 'SALDO_REQUISICAO'.
+
+ENDFORM.
+
+*---------------------------------------------------------------------*
+FORM f_processa.
+
+  CASE p_tipo.
+
+    WHEN 'SALDO_REQUISICAO'.
+      PERFORM f_saldo_requisicao.
+
+    WHEN 'SALDO_PEDIDO'.
+      PERFORM f_saldo_pedido.
+
+    WHEN 'SALDO_NF'.
+      PERFORM f_saldo_nf.
+
+    WHEN 'SALDO_FINAL'.
+      PERFORM f_saldo_final.
+
+    WHEN OTHERS.
+      MESSAGE 'Opção inválida' TYPE 'E'.
+
+  ENDCASE.
+
+ENDFORM.
+
+*---------------------------------------------------------------------*
+FORM f_saldo_requisicao.
+    SELECT
+      banfn,
+      bnfpo,
+      badat,
+      matnr,
+      txz01,
+      menge,
+      preis,
+      waers,
+      werks,
+      afnam
+    FROM eban
+    INTO TABLE @gt_result_req
+    WHERE ebeln = ' '
+      AND loekz <> 'X'
+      AND banpr <> 'X'
+      AND badat IN @s_badat
+      AND matnr IN @s_matnr
+      AND werks IN @s_werks
+      AND matkl IN @s_matkl
+    ORDER BY badat,
+             banfn,
+             bnfpo.
+
+    GET REFERENCE OF gt_result_req INTO gr_data.
+
+    PERFORM f_exibicao_report
+      USING p_tipo
+            gr_data.
+
+ENDFORM.
+
+FORM f_saldo_pedido.
+    SELECT
+      ekko~ebeln,
+      ekpo~ebelp,
+      ekko~bedat,
+      ekko~lifnr,
+      ekpo~matnr,
+      ekpo~txz01,
+      ekpo~menge,
+      ekpo~netwr
+    FROM ekko
+    INNER JOIN ekpo
+      ON ekko~ebeln = ekpo~ebeln
+    LEFT JOIN ekbe
+      ON ekbe~ebeln = ekpo~ebeln
+     AND ekbe~ebelp = ekpo~ebelp
+     AND ekbe~bewtp = 'Q'
+    INTO TABLE @gt_result_ped
+    WHERE ekko~loekz <> 'X'
+      AND ekpo~elikz <> 'X'
+      AND ekbe~ebeln IS NULL
+      AND ekko~bedat IN @s_badat
+      AND ekko~lifnr IN @s_lifnr
+      AND ekko~ebeln IN @s_ebeln
+      AND ekpo~matnr IN @s_matnr
+      AND ekpo~werks IN @s_werks
+      AND ekko~ekgrp IN @s_ekgrp
+      AND ekko~ekorg IN @s_ekorg
+      AND ekko~bsart IN @s_bsart
+      AND ekpo~matkl IN @s_matkl.
+
+    GET REFERENCE OF gt_result_ped INTO gr_data.
+
+    PERFORM f_exibicao_report
+      USING p_tipo
+            gr_data.
+ENDFORM.
+
+FORM f_saldo_nf.
+    SELECT
+      ekbe~ebeln,
+      ekbe~ebelp,
+      ekbe~belnr,
+      ekbe~gjahr,
+      ekbe~buzei,
+      ekbe~budat,
+      ekbe~menge,
+      CASE ekbe~shkzg
+        WHEN 'H' THEN ekbe~dmbtr * -1
+        ELSE ekbe~dmbtr
+      END AS dmbtr,
+      ekbe~shkzg
+    FROM ekbe
+    INNER JOIN ekko
+      ON ekko~ebeln = ekbe~ebeln
+    INNER JOIN ekpo
+      ON ekpo~ebeln = ekbe~ebeln
+     AND ekpo~ebelp = ekbe~ebelp
+    INTO TABLE @gt_nf_saldo
+    WHERE ekbe~bewtp = 'Q'
+      AND ekbe~budat IN @s_badat
+      AND ekko~lifnr IN @s_lifnr
+      AND ekko~ebeln IN @s_ebeln
+      AND ekpo~matnr IN @s_matnr
+      AND ekpo~werks IN @s_werks
+      AND ekko~ekgrp IN @s_ekgrp
+      AND ekko~ekorg IN @s_ekorg
+      AND ekko~bsart IN @s_bsart
+      AND ekpo~matkl IN @s_matkl.
+
+    GET REFERENCE OF gt_nf_saldo INTO gr_data.
+
+    PERFORM f_exibicao_report
+      USING p_tipo
+            gr_data.
+ENDFORM.
+
+FORM f_saldo_final.
+    SELECT
+      ekko~ebeln                              AS ebeln,
+      ekpo~ebelp                              AS ebelp,
+      ekko~lifnr                              AS lifnr,
+      ekko~bedat                              AS bedat,
+      ekpo~matnr                              AS matnr,
+      ekpo~txz01                              AS txz01,
+
+      ekpo~menge                              AS menge_pedido,
+      ekpo~netwr                              AS valor_pedido,
+
+      SUM(
+        CASE
+          WHEN ekbe~bewtp = 'Q'
+          THEN ekbe~dmbtr
+          ELSE 0
+        END
+      )                                       AS valor_nf,
+
+      SUM(
+        CASE
+          WHEN bseg~augbl <> ' '
+          THEN bseg~dmbtr
+          ELSE 0
+        END
+      )                                       AS valor_pago
+    FROM ekko
+    INNER JOIN ekpo
+      ON ekko~ebeln = ekpo~ebeln
+    LEFT JOIN ekbe
+      ON ekbe~ebeln = ekpo~ebeln
+     AND ekbe~ebelp = ekpo~ebelp
+     AND ekbe~bewtp = 'Q'
+    LEFT JOIN bseg
+      ON bseg~ebeln = ekpo~ebeln
+     AND bseg~ebelp = ekpo~ebelp
+     AND bseg~augbl <> ' '
+    INTO TABLE @gt_saldo_final
+    WHERE ekko~loekz <> 'X'
+      AND ekpo~elikz <> 'X'
+      AND ekko~bedat IN @s_badat
+      AND ekko~lifnr IN @s_lifnr
+      AND ekko~ebeln IN @s_ebeln
+      AND ekpo~matnr IN @s_matnr
+      AND ekpo~werks IN @s_werks
+      AND ekko~ekgrp IN @s_ekgrp
+      AND ekko~ekorg IN @s_ekorg
+      AND ekko~bsart IN @s_bsart
+      AND ekpo~matkl IN @s_matkl
+    GROUP BY
+      ekko~ebeln,
+      ekpo~ebelp,
+      ekko~lifnr,
+      ekko~bedat,
+      ekpo~matnr,
+      ekpo~txz01,
+      ekpo~menge,
+      ekpo~netwr,
+      ekko~waers.
+
+  GET REFERENCE OF gt_saldo_final INTO gr_data.
+
+  PERFORM f_exibicao_report
+      USING p_tipo
+            gr_data.
+
+ENDFORM.
