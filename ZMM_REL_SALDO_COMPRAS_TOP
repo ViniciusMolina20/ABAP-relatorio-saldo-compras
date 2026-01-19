@@ -1,0 +1,112 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_REL_SALDO_COMPRAS_TOP
+*&---------------------------------------------------------------------*
+
+*---------------------------------------------------------------------*
+*  VARIÁVEIS
+*---------------------------------------------------------------------*
+TYPES: BEGIN OF ty_req_saldo,
+         banfn TYPE eban-banfn,   "Requisição
+         bnfpo TYPE eban-bnfpo,   "Item
+         badat TYPE eban-badat,   "Data
+         matnr TYPE eban-matnr,   "Material
+         txz01 TYPE eban-txz01,   "Texto
+         menge TYPE eban-menge,   "Quantidade
+         preis TYPE eban-preis,   "Preço
+         waers TYPE eban-waers,   "Moeda
+         werks TYPE eban-werks,   "Centro
+         afnam TYPE eban-afnam,   "Solicitante
+       END OF ty_req_saldo.
+
+TYPES: BEGIN OF ty_ped_saldo,
+
+         " Dados do pedido
+         ebeln TYPE ekko-ebeln,   "Número do pedido
+         ebelp TYPE ekpo-ebelp,   "Item do pedido
+         bedat TYPE ekko-bedat,   "Data do pedido
+         lifnr TYPE ekko-lifnr,   "Fornecedor
+
+         " Dados do material
+         matnr TYPE ekpo-matnr,   "Material
+         txz01 TYPE ekpo-txz01,   "Texto do item
+
+         " Quantidades
+         menge TYPE ekpo-menge,   "Quantidade do pedido
+         netwr TYPE ekpo-netwr,   "Valor total do item
+
+       END OF ty_ped_saldo.
+
+
+TYPES: BEGIN OF ty_nf_saldo,
+
+         " Pedido
+         ebeln TYPE ekbe-ebeln,   "Pedido
+         ebelp TYPE ekbe-ebelp,   "Item
+
+         " Nota fiscal
+         belnr TYPE ekbe-belnr,   "Documento da nota
+         gjahr TYPE ekbe-gjahr,   "Exercício
+         buzei TYPE ekbe-buzei,   "Item do doc
+
+         " Datas
+         budat TYPE ekbe-budat,   "Data contábil
+
+         " Quantidade e valores
+         menge TYPE ekbe-menge,   "Quantidade
+         dmbtr TYPE ekbe-dmbtr,   "Valor da nota
+         shkzg TYPE ekbe-shkzg,   "Débito/Crédito
+
+       END OF ty_nf_saldo.
+
+TYPES: BEGIN OF ty_saldo_final,
+
+         " Identificação
+         ebeln TYPE ekko-ebeln,     "Pedido
+         ebelp TYPE ekpo-ebelp,     "Item
+         lifnr TYPE ekko-lifnr,     "Fornecedor
+         bedat TYPE ekko-bedat,     "Data pedido
+
+         " Material
+         matnr TYPE ekpo-matnr,
+         txz01 TYPE ekpo-txz01,
+
+         " Quantidade
+         menge_pedido TYPE ekpo-menge,
+         menge_nf     TYPE ekbe-menge,
+
+         " Valores
+         valor_pedido TYPE ekpo-netwr,
+         valor_nf     TYPE ekbe-dmbtr,
+         valor_pago   TYPE bseg-dmbtr,
+
+         " Saldos
+         saldo_nf     TYPE ekpo-netwr,
+         saldo_final  TYPE ekpo-netwr,
+
+         waers TYPE ekko-waers,
+
+       END OF ty_saldo_final.
+
+
+DATA:
+  gt_values TYPE vrm_values.
+
+DATA: gt_result_req TYPE STANDARD TABLE OF ty_req_saldo,
+      gt_result_ped TYPE STANDARD TABLE OF ty_ped_saldo,
+      gt_nf_saldo TYPE STANDARD TABLE OF ty_nf_saldo,
+      gs_nf_saldo TYPE ty_nf_saldo,
+      gt_saldo_final TYPE STANDARD TABLE OF ty_saldo_final,
+      gs_saldo_final TYPE ty_saldo_final,
+      go_alv    TYPE REF TO cl_salv_table.
+
+DATA gr_data TYPE REF TO data.
+
+DATA: sv_badat TYPE eban-badat,
+      sv_lifnr TYPE eban-lifnr,
+      sv_ebeln TYPE ekko-ebeln,
+      sv_matnr TYPE ekpo-matnr,
+      sv_werks TYPE ekpo-werks,
+      sv_ekgrp TYPE ekko-ekgrp,
+      sv_ekorg TYPE ekko-ekorg,
+      sv_bsart TYPE ekko-bsart,
+      sv_matkl TYPE ekpo-matkl.  
