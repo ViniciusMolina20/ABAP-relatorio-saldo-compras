@@ -1,0 +1,24 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_REL_SALDO_COMPRAS_SEL
+*&---------------------------------------------------------------------*
+
+*---------------------------------------------------------------------*
+*  TELA DE SELEÇÃO
+*---------------------------------------------------------------------*
+SELECTION-SCREEN BEGIN OF BLOCK b1 WITH FRAME TITLE text-001.
+
+PARAMETERS:
+  p_tipo TYPE char30 AS LISTBOX VISIBLE LENGTH 35.
+
+SELECT-OPTIONS:
+  s_badat FOR sv_badat OBLIGATORY,
+  s_lifnr FOR sv_lifnr,
+  s_ebeln FOR sv_ebeln,
+  s_matnr FOR sv_matnr,
+  s_werks FOR sv_werks,
+  s_ekgrp FOR sv_ekgrp,
+  s_ekorg FOR sv_ekorg,
+  s_bsart FOR sv_bsart,
+  s_matkl FOR sv_matkl.
+
+SELECTION-SCREEN END OF BLOCK b1.
