@@ -1,0 +1,37 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZMM_REL_SALDO_COMPRAS_ALV
+*&---------------------------------------------------------------------*
+
+FORM f_exibicao_report
+  USING
+    pv_tipo TYPE char30
+    pr_data TYPE REF TO data.
+
+  FIELD-SYMBOLS: <gt_table> TYPE ANY TABLE.
+
+  ASSIGN pr_data->* TO <gt_table>.
+
+  IF <gt_table> IS INITIAL.
+    MESSAGE 'Nenhum dado encontrado' TYPE 'I'.
+    RETURN.
+  ENDIF.
+
+  TRY.
+      cl_salv_table=>factory(
+        IMPORTING
+          r_salv_table = go_alv
+        CHANGING
+          t_table      = <gt_table>
+      ).
+
+      go_alv->get_display_settings( )->set_striped_pattern( abap_true ).
+      go_alv->get_columns( )->set_optimize( abap_true ).
+      go_alv->get_functions( )->set_all( abap_true ).
+
+      go_alv->display( ).
+
+    CATCH cx_salv_msg INTO DATA(lx_msg).
+      MESSAGE lx_msg->get_text( ) TYPE 'E'.
+  ENDTRY.
+
+ENDFORM.
